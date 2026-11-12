@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0f5132">
+<title>Rummy Score Keeper</title>
+<style>
+  :root {
+    --bg: #f4f1ea; --card: #ffffff; --ink: #1d2320; --muted: #6b726e;
+    --line: #e2ddd2; --felt: #0f5132; --felt2: #157347; --accent: #c0392b;
+    --gold: #b8860b; --chip: #eef3ef;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #121614; --card: #1c211f; --ink: #e9ece9; --muted: #98a19c;
+      --line: #2c3330; --felt: #1e7a4c; --felt2: #26965e; --accent: #e5675a;
+      --gold: #e0b44c; --chip: #243029;
+    }
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; background: var(--bg); color: var(--ink);
+    font: 16px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  body { padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
+  header { background: var(--felt); color: #fff; padding: 14px 16px; display: flex;
+    align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 5; }
+  header h1 { font-size: 18px; margin: 0; letter-spacing: .3px; }
+  header .suits { opacity: .8; margin-right: 6px; }
+  main { max-width: 640px; margin: 0 auto; padding: 14px 12px 40px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+    padding: 14px; margin-bottom: 14px; }
+  h2 { font-size: 15px; margin: 0 0 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .6px; }
+  label { display: block; font-size: 13px; color: var(--muted); margin: 10px 0 4px; }
+  input, select { width: 100%; font-size: 16px; padding: 11px 12px; border-radius: 10px;
+    border: 1px solid var(--line); background: var(--bg); color: var(--ink); }
+  input:focus, select:focus { outline: 2px solid var(--felt2); border-color: transparent; }
+  .row { display: flex; gap: 8px; align-items: center; }
+  .row > * { flex: 1; }
+  button { font: inherit; border: 0; border-radius: 10px; padding: 12px 14px; cursor: pointer;
+    background: var(--chip); color: var(--ink); font-weight: 600; }
+  button.primary { background: var(--felt); color: #fff; }
+  button.danger { background: transparent; color: var(--accent); border: 1px solid var(--accent); }
+  button.ghost { background: transparent; color: #fff; border: 1px solid rgba(255,255,255,.5); padding: 7px 11px; font-size: 14px; }
+  button.small { padding: 7px 10px; font-size: 13px; }
+  button:disabled { opacity: .45; }
+  .full { width: 100%; }
+  .player-line { display: flex; gap: 8px; margin-bottom: 8px; }
+  .player-line input { flex: 1; }
+  .player-line button { flex: 0 0 44px; padding: 0; color: var(--accent); }
+  .seg { display: flex; background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 3px; }
+  .seg button { flex: 1; background: transparent; padding: 9px 6px; font-size: 14px; }
+  .seg button.on { background: var(--felt); color: #fff; }
+  .hint { font-size: 13px; color: var(--muted); margin-top: 6px; }
+  .hidden { display: none !important; }
+
+  /* Standings */
+  .standings { display: grid; gap: 8px; }
+  .stand { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 12px;
+    background: var(--bg); border: 1px solid var(--line); }
+  .stand .rank { width: 24px; text-align: center; font-weight: 700; color: var(--muted); }
+  .stand .name { flex: 1; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .stand .total { font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums; }
+  .stand .left { font-size: 12px; color: var(--muted); text-align: right; }
+  .stand.lead { border-color: var(--gold); box-shadow: inset 4px 0 0 var(--gold); }
+  .stand.out { opacity: .5; }
+  .stand.out .name { text-decoration: line-through; }
+  .bar { height: 4px; background: var(--line); border-radius: 2px; margin-top: 4px; overflow: hidden; }
+  .bar i { display: block; height: 100%; background: var(--felt2); }
+  .bar i.warn { background: var(--accent); }
+
+  /* Round entry */
+  .entry { border-top: 1px solid var(--line); padding: 10px 0; }
+  .entry:first-of-type { border-top: 0; }
+  .entry .top { display: flex; align-items: center; gap: 10px; }
+  .entry .top .nm { flex: 1; font-weight: 600; }
+  .entry .top input { width: 96px; flex: 0 0 96px; text-align: center; font-size: 20px; font-weight: 700; padding: 8px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .chips button { padding: 6px 10px; font-size: 13px; font-weight: 600; border-radius: 999px; }
+  .chips button.win { background: var(--felt); color: #fff; }
+  .chips button:disabled { text-decoration: line-through; opacity: .35; cursor: not-allowed; }
+
+  /* History table */
+  .tbl-wrap { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
+  th, td { padding: 8px 6px; text-align: center; border-bottom: 1px solid var(--line); font-size: 14px; white-space: nowrap; }
+  th { color: var(--muted); font-weight: 600; font-size: 12px; }
+  td.zero { color: var(--felt2); font-weight: 700; }
+  tfoot td { font-weight: 800; border-bottom: 0; }
+
+  .banner { text-align: center; padding: 18px 14px; border-radius: 14px; margin-bottom: 14px;
+    background: linear-gradient(135deg, var(--felt), var(--felt2)); color: #fff; }
+  .banner b { font-size: 24px; display: block; margin-top: 4px; }
+
+  /* modal */
+  .modal { position: fixed; inset: 0; background: rgba(0,0,0,.45); display: flex; align-items: flex-end;
+    justify-content: center; z-index: 20; }
+  .sheet { background: var(--card); width: 100%; max-width: 520px; border-radius: 18px 18px 0 0;
+    padding: 18px 16px calc(18px + env(safe-area-inset-bottom)); }
+  .sheet p { margin: 0 0 14px; }
+  .toast { position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom)); transform: translateX(-50%);
+    background: var(--ink); color: var(--bg); padding: 10px 16px; border-radius: 999px; font-size: 14px; z-index: 30;
+    opacity: 0; transition: opacity .2s; pointer-events: none; }
+  .toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+<header>
+  <h1><span class="suits">♠♥♦♣</span>Rummy Scores</h1>
+  <button class="ghost hidden" id="menuBtn">New game</button>
+</header>
+
+<main>
+  <!-- SETUP -->
+  <section id="setup">
+    <div class="card">
+      <h2>Players</h2>
+      <div id="playerList"></div>
+      <button class="full" id="addPlayer">+ Add player</button>
+    </div>
+
+    <div class="card">
+      <h2>Game type</h2>
+      <div class="seg" id="modeSeg">
+        <button data-mode="pool" class="on">Pool (lowest wins)</button>
+        <button data-mode="target">Race to target</button>
+      </div>
+
+      <div id="poolOpts">
+        <label>Elimination limit</label>
+        <div class="seg" id="limitSeg">
+          <button data-v="101">101</button>
+          <button data-v="201" class="on">201</button>
+          <button data-v="custom">Custom</button>
+        </div>
+        <input id="limitCustom" class="hidden" type="number" inputmode="numeric" placeholder="e.g. 251" style="margin-top:8px">
+        <div class="row">
+          <div><label>First drop</label><input id="dropVal" type="number" inputmode="numeric" value="25"></div>
+          <div><label>Middle drop</label><input id="midDropVal" type="number" inputmode="numeric" value="50"></div>
+          <div><label>Max / full</label><input id="maxVal" type="number" inputmode="numeric" value="80"></div>
+        </div>
+        <div class="hint">A player whose total reaches the limit is out. Last player standing wins. Round scores are capped at the max value.</div>
+      </div>
+
+      <div id="targetOpts" class="hidden">
+        <label>Target score</label>
+        <input id="targetVal" type="number" inputmode="numeric" value="500">
+        <div class="hint">Points add up each round (negatives allowed). First to reach the target wins.</div>
+      </div>
+    </div>
+
+    <button class="primary full" id="startBtn">Start game</button>
+    <div class="hint" id="setupErr" style="color:var(--accent);text-align:center"></div>
+  </section>
+
+  <!-- GAME -->
+  <section id="game" class="hidden">
+    <div id="winBanner" class="banner hidden"></div>
+
+    <div class="card">
+      <h2 id="standTitle">Standings</h2>
+      <div class="standings" id="standings"></div>
+    </div>
+
+    <div class="card hidden" id="rejoinCard"></div>
+
+    <div class="card" id="entryCard">
+      <h2 id="roundTitle">Round 1</h2>
+      <div id="entries"></div>
+      <div class="row" style="margin-top:10px">
+        <button class="primary" id="saveRound">Save round</button>
+      </div>
+      <div class="hint" id="entryErr" style="color:var(--accent)"></div>
+    </div>
+
+    <div class="card">
+      <h2>Round history</h2>
+      <div class="tbl-wrap"><table id="history"></table></div>
+      <div class="row" style="margin-top:10px">
+        <button class="danger small" id="undoBtn">Undo last entry</button>
+      </div>
+    </div>
+  </section>
+</main>
+
+<div class="modal hidden" id="confirmModal">
+  <div class="sheet">
+    <p id="confirmText"></p>
+    <div class="row">
+      <button id="confirmNo">Cancel</button>
+      <button class="primary" id="confirmYes">Yes</button>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+(function () {
+  const KEY = 'rummy-score-keeper-v1';
+  const $ = (id) => document.getElementById(id);
+
+  // ---------- persistence (convenience only) ----------
+  function save() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} }
+  function load() { try { const s = localStorage.getItem(KEY); return s ? JSON.parse(s) : null; } catch (e) { return null; } }
+
+  let state = load() || { phase: 'setup', setupNames: ['', ''], game: null };
+
+  // ---------- helpers ----------
+  function toast(msg) {
+    const t = $('toast'); t.textContent = msg; t.classList.add('show');
+    clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove('show'), 1600);
+  }
+  function confirmBox(text, onYes) {
+    $('confirmText').textContent = text;
+    $('confirmModal').classList.remove('hidden');
+    $('confirmYes').onclick = () => { $('confirmModal').classList.add('hidden'); onYes(); };
+    $('confirmNo').onclick = () => $('confirmModal').classList.add('hidden');
+  }
+  function esc(s) { return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+  // ---------- SETUP ----------
+  let setupMode = 'pool', setupLimit = '201';
+
+  function renderPlayerInputs() {
+    const list = $('playerList'); list.innerHTML = '';
+    state.setupNames.forEach((n, i) => {
+      const d = document.createElement('div'); d.className = 'player-line';
+      d.innerHTML = `<input placeholder="Player ${i + 1}" value="${esc(n)}" autocomplete="off">
+                     <button aria-label="Remove">✕</button>`;
+      d.querySelector('input').oninput = (e) => { state.setupNames[i] = e.target.value; save(); };
+      d.querySelector('button').onclick = () => {
+        if (state.setupNames.length <= 2) return toast('Need at least 2 players');
+        state.setupNames.splice(i, 1); save(); renderPlayerInputs();
+      };
+      list.appendChild(d);
+    });
+  }
+  $('addPlayer').onclick = () => {
+    if (state.setupNames.length >= 10) return toast('Max 10 players');
+    state.setupNames.push(''); save(); renderPlayerInputs();
+    const inputs = $('playerList').querySelectorAll('input'); inputs[inputs.length - 1].focus();
+  };
+  $('modeSeg').onclick = (e) => {
+    const b = e.target.closest('button'); if (!b) return;
+    setupMode = b.dataset.mode;
+    [...$('modeSeg').children].forEach(x => x.classList.toggle('on', x === b));
+    $('poolOpts').classList.toggle('hidden', setupMode !== 'pool');
+    $('targetOpts').classList.toggle('hidden', setupMode !== 'target');
+  };
+  $('limitSeg').onclick = (e) => {
+    const b = e.target.closest('button'); if (!b) return;
+    setupLimit = b.dataset.v;
+    [...$('limitSeg').children].forEach(x => x.classList.toggle('on', x === b));
+    $('limitCustom').classList.toggle('hidden', setupLimit !== 'custom');
+    if (setupLimit === 'custom') $('limitCustom').focus();
+  };
+  $('startBtn').onclick = () => {
+    const names = state.setupNames.map(s => s.trim()).map((s, i) => s || `Player ${i + 1}`);
+    if (new Set(names.map(n => n.toLowerCase())).size !== names.length) {
+      $('setupErr').textContent = 'Player names must be different.'; return;
+    }
+    $('setupErr').textContent = '';
+    const g = { mode: setupMode, players: names, rounds: [], winner: null };
+    if (setupMode === 'pool') {
+      g.limit = setupLimit === 'custom' ? parseInt($('limitCustom').value, 10) : parseInt(setupLimit, 10);
+      if (!(g.limit > 0)) { $('setupErr').textContent = 'Enter a valid limit.'; return; }
+      g.drop = parseInt($('dropVal').value, 10) || 0;
+      g.midDrop = parseInt($('midDropVal').value, 10) || 0;
+      g.max = parseInt($('maxVal').value, 10) || 0;
+    } else {
+      g.target = parseInt($('targetVal').value, 10);
+      if (!(g.target > 0)) { $('setupErr').textContent = 'Enter a valid target.'; return; }
+    }
+    state.game = g; state.phase = 'game'; save(); render();
+  };
+
+  // ---------- GAME LOGIC ----------
+  // g.rounds holds score rows (arrays) and re-entry entries ({rejoin: playerIdx, score})
+  const isRound = (r) => Array.isArray(r);
+  function roundCount(g) { return g.rounds.filter(isRound).length; }
+  function totals(g) {
+    const t = g.players.map(() => 0);
+    g.rounds.forEach(r => {
+      if (isRound(r)) r.forEach((v, i) => { if (v !== null) t[i] += v; });
+      else t[r.rejoin] = r.score;
+    });
+    return t;
+  }
+  // For each player: index of the score round in which they were most recently knocked out (null if in)
+  function outAtRound(g) {
+    const t = g.players.map(() => 0), at = g.players.map(() => null);
+    let k = -1;
+    g.rounds.forEach(r => {
+      if (isRound(r)) {
+        k++;
+        r.forEach((v, i) => {
+          if (v === null) return;
+          const before = t[i]; t[i] += v;
+          if (before < g.limit && t[i] >= g.limit) at[i] = k;
+        });
+      } else { t[r.rejoin] = r.score; at[r.rejoin] = null; }
+    });
+    return at;
+  }
+  // Re-entry status for each player who went out in the latest round
+  function rejoinInfo(g) {
+    if (g.mode !== 'pool' || !roundCount(g)) return [];
+    const t = totals(g), at = outAtRound(g), last = roundCount(g) - 1;
+    const active = activeIdx(g);
+    if (!active.length) return [];
+    const highest = Math.max(...active.map(i => t[i]));
+    const tight = active.filter(i => g.limit - t[i] < g.drop);
+    return g.players.map((_, i) => i)
+      .filter(i => isOut(g, t, i) && at[i] === last)
+      .map(i => ({ i, score: highest + 1, ok: tight.length === 0, tight }));
+  }
+  function isOut(g, t, i) { return g.mode === 'pool' && t[i] >= g.limit; }
+  function activeIdx(g) { const t = totals(g); return g.players.map((_, i) => i).filter(i => !isOut(g, t, i)); }
+  function computeWinner(g) {
+    const t = totals(g);
+    if (g.mode === 'pool') {
+      const a = activeIdx(g);
+      if (a.length === 1 && g.rounds.length) return a[0];
+      return null;
+    }
+    const reached = g.players.map((_, i) => i).filter(i => t[i] >= g.target);
+    if (!reached.length) return null;
+    return reached.sort((a, b) => t[b] - t[a])[0];
+  }
+
+  // ---------- GAME RENDER ----------
+  function renderStandings() {
+    const g = state.game, t = totals(g);
+    const order = g.players.map((_, i) => i).sort((a, b) => {
+      const oa = isOut(g, t, a), ob = isOut(g, t, b);
+      if (oa !== ob) return oa ? 1 : -1;
+      return g.mode === 'pool' ? t[a] - t[b] : t[b] - t[a];
+    });
+    $('standTitle').textContent = g.mode === 'pool' ? `Standings · out at ${g.limit}` : `Standings · target ${g.target}`;
+    const box = $('standings'); box.innerHTML = '';
+    order.forEach((i, rank) => {
+      const out = isOut(g, t, i);
+      const cap = g.mode === 'pool' ? g.limit : g.target;
+      const pct = Math.max(0, Math.min(100, (t[i] / cap) * 100));
+      let sub = '';
+      if (g.mode === 'pool') sub = out ? 'OUT' : `${g.limit - t[i]} left`;
+      else sub = `${Math.max(0, g.target - t[i])} to go`;
+      const warn = g.mode === 'pool' && !out && g.limit - t[i] <= g.max;
+      const d = document.createElement('div');
+      d.className = 'stand' + (rank === 0 && !out && roundCount(g) ? ' lead' : '') + (out ? ' out' : '');
+      d.innerHTML = `<div class="rank">${rank + 1}</div>
+        <div style="flex:1;min-width:0"><div class="name">${esc(g.players[i])}</div>
+          <div class="bar"><i class="${warn ? 'warn' : ''}" style="width:${pct}%"></i></div></div>
+        <div><div class="total">${t[i]}</div><div class="left" ${warn ? 'style="color:var(--accent)"' : ''}>${sub}</div></div>`;
+      box.appendChild(d);
+    });
+  }
+
+  let draft = {};
+  function renderEntries() {
+    const g = state.game, t = totals(g);
+    $('roundTitle').textContent = `Round ${roundCount(g) + 1}`;
+    const box = $('entries'); box.innerHTML = '';
+    g.players.forEach((name, i) => {
+      if (isOut(g, t, i)) return;
+      const d = document.createElement('div'); d.className = 'entry';
+      let chips = `<button class="win" data-v="0">Winner (0)</button>`;
+      let note = '';
+      if (g.mode === 'pool') {
+        const left = g.limit - t[i];
+        const canDrop = left >= g.drop, canMid = left >= g.midDrop;
+        chips += `<button data-v="${g.drop}" ${canDrop ? '' : 'disabled'}>Drop ${g.drop}</button>
+                  <button data-v="${g.midDrop}" ${canMid ? '' : 'disabled'}>Mid drop ${g.midDrop}</button>
+                  <button data-v="${g.max}">Full ${g.max}</button>`;
+        if (!canDrop) note = `No drops allowed — only ${left} points left`;
+        else if (!canMid) note = `Middle drop not allowed — only ${left} points left`;
+      } else {
+        chips += `<button data-neg="1">± flip sign</button>`;
+      }
+      d.innerHTML = `<div class="top"><div class="nm">${esc(name)}</div>
+          <input type="number" inputmode="${g.mode === 'pool' ? 'numeric' : 'text'}" placeholder="pts" value="${draft[i] ?? ''}"></div>
+        <div class="chips">${chips}</div>${note ? `<div class="hint" style="color:var(--accent)">${note}</div>` : ''}`;
+      const inp = d.querySelector('input');
+      inp.oninput = () => { draft[i] = inp.value; };
+      d.querySelector('.chips').onclick = (e) => {
+        const b = e.target.closest('button'); if (!b || b.disabled) return;
+        if (b.dataset.neg) { const v = parseInt(inp.value, 10); if (!isNaN(v)) inp.value = -v; }
+        else inp.value = b.dataset.v;
+        draft[i] = inp.value;
+      };
+      box.appendChild(d);
+    });
+  }
+
+  function renderHistory() {
+    const g = state.game, t = totals(g);
+    let h = '<thead><tr><th>#</th>' + g.players.map(p => `<th>${esc(p)}</th>`).join('') + '</tr></thead><tbody>';
+    let k = 0;
+    g.rounds.forEach((r) => {
+      if (!isRound(r)) {
+        h += `<tr><td style="color:var(--gold)">↩</td><td colspan="${g.players.length}" style="text-align:left;color:var(--gold);font-weight:600">${esc(g.players[r.rejoin])} re-entered at ${r.score}</td></tr>`;
+        return;
+      }
+      k++;
+      h += `<tr><td style="color:var(--muted)">${k}</td>` +
+        r.map(v => v === null ? '<td style="color:var(--muted)">–</td>' : `<td class="${v === 0 ? 'zero' : ''}">${v}</td>`).join('') + '</tr>';
+    });
+    if (!g.rounds.length) h += `<tr><td colspan="${g.players.length + 1}" style="color:var(--muted)">No rounds yet</td></tr>`;
+    h += '</tbody><tfoot><tr><td>Σ</td>' + t.map(v => `<td>${v}</td>`).join('') + '</tr></tfoot>';
+    $('history').innerHTML = h;
+    $('undoBtn').disabled = !g.rounds.length;
+  }
+
+  function renderGame() {
+    const g = state.game;
+    g.winner = computeWinner(g);
+    const done = g.winner !== null;
+    const rj = rejoinInfo(g);
+    const canRejoin = rj.some(x => x.ok);
+    const n = roundCount(g);
+    $('winBanner').classList.toggle('hidden', !done);
+    if (done) $('winBanner').innerHTML = `🏆 Winner<b>${esc(g.players[g.winner])}</b>after ${n} round${n > 1 ? 's' : ''}` +
+      (canRejoin ? `<div style="font-size:13px;margin-top:6px;opacity:.9">…unless a knocked-out player re-enters below</div>` : '');
+    $('entryCard').classList.toggle('hidden', done);
+    renderRejoin(rj);
+    renderStandings(); renderEntries(); renderHistory();
+  }
+
+  function renderRejoin(rj) {
+    const g = state.game, t = totals(g), box = $('rejoinCard');
+    if (!rj.length) { box.classList.add('hidden'); return; }
+    box.classList.remove('hidden');
+    let h = '<h2>Re-entry</h2>';
+    rj.forEach(x => {
+      if (x.ok) {
+        h += `<div class="entry"><div class="top"><div class="nm">${esc(g.players[x.i])}</div>
+              <button class="primary small" data-rejoin="${x.i}">Re-enter at ${x.score}</button></div>
+              <div class="hint">Highest score in play + 1. Only available before the next round is saved.</div></div>`;
+      } else {
+        const who = x.tight.map(j => `${esc(g.players[j])} (${g.limit - t[j]} left)`).join(', ');
+        h += `<div class="entry"><div class="top"><div class="nm">${esc(g.players[x.i])}</div>
+              <button class="small" disabled>Can’t re-enter</button></div>
+              <div class="hint" style="color:var(--accent)">Not allowed: ${who} ${x.tight.length > 1 ? 'have' : 'has'} fewer than ${g.drop} points left.</div></div>`;
+      }
+    });
+    box.innerHTML = h;
+    box.querySelectorAll('[data-rejoin]').forEach(b => b.onclick = () => {
+      const x = rj.find(r => r.i === +b.dataset.rejoin);
+      confirmBox(`Re-enter ${g.players[x.i]} with a score of ${x.score}?`, () => {
+        g.rounds.push({ rejoin: x.i, score: x.score }); save(); renderGame();
+        toast(`${g.players[x.i]} is back in at ${x.score}`);
+      });
+    });
+  }
+
+  $('saveRound').onclick = () => {
+    const g = state.game, t = totals(g);
+    const act = activeIdx(g);
+    const row = g.players.map(() => null);
+    for (const i of act) {
+      const raw = (draft[i] ?? '').toString().trim();
+      if (raw === '') { $('entryErr').textContent = `Enter a score for ${g.players[i]}.`; return; }
+      let v = parseInt(raw, 10);
+      if (isNaN(v)) { $('entryErr').textContent = `Invalid score for ${g.players[i]}.`; return; }
+      if (g.mode === 'pool') {
+        if (v < 0) { $('entryErr').textContent = 'Scores can’t be negative in pool rummy.'; return; }
+        if (g.max > 0 && v > g.max) v = g.max;
+      }
+      row[i] = v;
+    }
+    if (g.mode === 'pool') {
+      const zeros = act.filter(i => row[i] === 0).length;
+      if (zeros !== 1) {
+        $('entryErr').textContent = zeros === 0 ? 'Mark one player as the round winner (0).' : 'Only one player can score 0 in a round.';
+        return;
+      }
+    }
+    $('entryErr').textContent = '';
+    g.rounds.push(row); draft = {}; save();
+    const before = t, after = totals(g);
+    const newlyOut = g.mode === 'pool' ? act.filter(i => before[i] < g.limit && after[i] >= g.limit) : [];
+    renderGame();
+    toast(newlyOut.length ? `${newlyOut.map(i => g.players[i]).join(', ')} out!` : `Round ${roundCount(g)} saved`);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  $('undoBtn').onclick = () => {
+    const last = state.game.rounds[state.game.rounds.length - 1];
+    const what = isRound(last) ? 'the last round' : `${state.game.players[last.rejoin]}'s re-entry`;
+    confirmBox(`Undo ${what}?`, () => {
+      state.game.rounds.pop(); save(); renderGame(); toast(isRound(last) ? 'Last round removed' : 'Re-entry undone');
+    });
+  };
+
+  $('menuBtn').onclick = () => {
+    confirmBox('Start a new game? Current scores will be cleared.', () => {
+      state.setupNames = state.game ? state.game.players.slice() : state.setupNames;
+      state.game = null; state.phase = 'setup'; draft = {}; save(); render();
+    });
+  };
+
+  function render() {
+    const inGame = state.phase === 'game' && state.game;
+    $('setup').classList.toggle('hidden', inGame);
+    $('game').classList.toggle('hidden', !inGame);
+    $('menuBtn').classList.toggle('hidden', !inGame);
+    if (inGame) renderGame(); else renderPlayerInputs();
+  }
+  render();
+})();
+</script>
+</body>
+</html>
